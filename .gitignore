@@ -1,2 +1,7 @@
 .venv/
 .streamlit/
+.pyc
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd

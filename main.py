@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 import random
+from utils.invoke import invoke
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -112,24 +113,28 @@ st.markdown("""
 
 
 # --- Placeholder for AI Response Logic ---
-def get_ai_response(user_query: str):
+def get_ai_response_stream(user_query: str):
     """
-    PLACEHOLDER: Ganti fungsi ini dengan pemanggilan model AI Anda (misal: OpenAI, Gemini, dll).
-    Fungsi ini harus mengembalikan dua nilai:
-    1. Teks respons (string)
-    2. Daftar referensi (list of dictionaries)
+    Generator function untuk streaming response dari AI.
+    Fungsi ini akan yield response secara bertahap untuk efek streaming.
     """
-    time.sleep(random.uniform(0.5, 1.5))
-    if "sabar" in user_query.lower():
-        response_text = "Sabar adalah salah satu kunci utama dalam menghadapi cobaan. Dalam Islam, kesabaran sangat dihargai dan dijanjikan pahala yang besar oleh Allah SWT."
-        references = [{"title": "QS. Al-Baqarah: 153", "source": "Hai orang-orang yang beriman, jadikanlah sabar dan shalat sebagai penolongmu, sesungguhnya Allah beserta orang-orang yang sabar."}]
-    elif "syukur" in user_query.lower():
-        response_text = "Syukur adalah bentuk pengakuan dan penghargaan atas nikmat yang telah Allah berikan. Dengan bersyukur, Allah berjanji akan menambah nikmat-Nya."
-        references = [{"title": "QS. Ibrahim: 7", "source": "Dan (ingatlah juga), tatkala Tuhanmu memaklumkan; 'Sesungguhnya jika kamu bersyukur, pasti Kami akan menambah (nikmat) kepadamu...'"}]
-    else:
-        response_text = "Maaf, saya belum memahami pertanyaan Anda. Bisa coba tanyakan hal lain seputar ajaran Islam? Misalnya tentang sabar atau syukur."
-        references = []
-    return response_text, references
+    # Dapatkan response penuh dari invoke
+    full_response = invoke(user_query)
+    references = []  # Bisa dimodifikasi jika invoke mengembalikan referensi
+    
+    # Stream response kata demi kata atau chunk demi chunk
+    words = full_response.split()
+    streamed_response = ""
+    
+    for i, word in enumerate(words):
+        streamed_response += word + " "
+        # Yield response yang sudah dibangun sejauh ini
+        yield streamed_response.strip(), references
+        # Delay kecil untuk efek streaming (bisa disesuaikan)
+        time.sleep(0.05)  # Delay 50ms per kata
+    
+    # Yield response final
+    yield full_response, references
 
 # --- Initialize Session State ---
 if "messages" not in st.session_state:
@@ -190,12 +195,39 @@ if final_prompt:
 
     # Tambah pesan user ke histori
     st.session_state.messages.append({"role": "user", "content": final_prompt})
+    
+    # Tampilkan pesan user yang baru
+    with st.chat_message("user"):
+        st.markdown(final_prompt)
 
-    # Panggil AI dan tambah responsnya ke histori
-    response, references = get_ai_response(final_prompt)
+    # Buat placeholder untuk streaming response
+    with st.chat_message("assistant", avatar="🌙"):
+        message_placeholder = st.empty()
+        references_placeholder = st.empty()
+        
+        # Stream the response
+        full_response = ""
+        references = []
+        
+        for response_chunk, refs in get_ai_response_stream(final_prompt):
+            full_response = response_chunk
+            references = refs
+            # Update placeholder dengan response yang sedang dibangun
+            message_placeholder.markdown(full_response + "▌")  # Cursor blinking effect
+        
+        # Hapus cursor dan tampilkan response final
+        message_placeholder.markdown(full_response)
+        
+        # Tampilkan referensi jika ada
+        if references:
+            with references_placeholder.expander("Lihat Referensi 📚"):
+                for ref in references:
+                    st.info(f"**{ref['title']}**: {ref['source']}", icon="📖")
+
+    # Tambah response ke histori setelah streaming selesai
     st.session_state.messages.append({
         "role": "assistant", 
-        "content": response, 
+        "content": full_response, 
         "references": references
     })
     
