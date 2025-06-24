@@ -1,13 +1,22 @@
 import streamlit as st
 import time
 import random
-from utils.invoke import invoke
+# Pastikan file-file ini ada di dalam folder 'utils'
+from utils.invoke_lstm import invoke_lstm
+from utils.invoke_distilbert import invoke_distilbert
+from utils.get_references import get_references
+
+# --- Mock Functions (for demonstration if utils are not available) ---
+# Hapus atau komentari bagian ini jika Anda memiliki file invoke_... yang sebenarnya
+
+# --- End of Mock Functions ---
+
 
 # --- Page Configuration ---
 st.set_page_config(
     page_title="IslamQ",
     page_icon="🌙",
-    layout="centered", # 'centered' lebih cocok untuk gaya Gemini
+    layout="centered",
     initial_sidebar_state="auto"
 )
 
@@ -111,46 +120,65 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+secrets = st.secrets.get('secret_key')
 
-# --- Placeholder for AI Response Logic ---
-def get_ai_response_stream(user_query: str):
+# --- AI Response Logic ---
+def get_ai_response_stream(user_query: str, model: str):
     """
     Generator function untuk streaming response dari AI.
-    Fungsi ini akan yield response secara bertahap untuk efek streaming.
+    Memanggil model yang sesuai berdasarkan pilihan pengguna.
     """
-    # Dapatkan response penuh dari invoke
-    full_response = invoke(user_query)
-    references = []  # Bisa dimodifikasi jika invoke mengembalikan referensi
+    # Dapatkan response penuh dari model yang dipilih
+    if model == "LSTM":
+        full_response = invoke_lstm(user_query)
+    elif model == "DistilBERT":
+        full_response = invoke_distilbert(user_query)
+    else:
+        full_response = "Model tidak valid. Silakan pilih model yang tersedia."
+    results = get_references(user_query, secrets)
     
-    # Stream response kata demi kata atau chunk demi chunk
+    # Stream response kata demi kata
     words = full_response.split()
+    if not words: # Handle empty response
+        yield "", references
+        return
+
     streamed_response = ""
-    
-    for i, word in enumerate(words):
+    for word in words:
         streamed_response += word + " "
-        # Yield response yang sudah dibangun sejauh ini
         yield streamed_response.strip(), references
-        # Delay kecil untuk efek streaming (bisa disesuaikan)
-        time.sleep(0.05)  # Delay 50ms per kata
+        time.sleep(0.05)
     
     # Yield response final
-    yield full_response, references
+    yield full_response, results
 
 # --- Initialize Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "chat_started" not in st.session_state:
     st.session_state.chat_started = False
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "DistilBERT" # Default model
 
 # --- UI Rendering Logic ---
 
-# **FIX:** Initialize prompt_from_suggestion to None before the conditional logic
 prompt_from_suggestion = None
+
+# Tampilkan judul utama di semua kondisi
+st.markdown('<h1 class="app-title">🌙 IslamQ</h1>', unsafe_allow_html=True)
 
 # Jika percakapan BELUM dimulai, tampilkan layar sambutan
 if not st.session_state.chat_started:
-    st.markdown('<h1 class="app-title">🌙 IslamQ</h1>', unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Assalamu'alaikum. Ada yang bisa dibantu hari ini?</p>", unsafe_allow_html=True)
+
+    # --- Model Selection ---
+    model_choice = st.selectbox(
+        'Pilih model AI yang ingin Anda gunakan:',
+        ('DistilBERT', 'LSTM'),
+        key='model_selector'
+    )
+    # Simpan pilihan ke session state
+    st.session_state.selected_model = model_choice
     st.markdown("---")
     
     st.markdown("<h3 style='text-align: center;'>Coba tanyakan:</h3>", unsafe_allow_html=True)
@@ -170,66 +198,68 @@ if not st.session_state.chat_started:
 
 # Jika percakapan SUDAH dimulai, tampilkan histori chat
 else:
-    # (Optional) You can still show the title if you want
-    # st.markdown('<h1 class="app-title">🌙 Asisten AI Islami</h1>', unsafe_allow_html=True)
+    # Tampilkan model yang sedang digunakan
+    st.info(f"Menggunakan model: **{st.session_state.selected_model}**", icon="🤖")
     for message in st.session_state.messages:
-        if message["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(message["content"])
-        else: # Assistant's turn (no bubble)
-            with st.chat_message("assistant", avatar="🌙"):
-                st.markdown(message["content"])
-                if message.get("references"):
-                    with st.expander("Lihat Referensi 📚"):
-                        for ref in message["references"]:
-                            st.info(f"**{ref['title']}**: {ref['source']}", icon="📖")
+        avatar = "🌙" if message["role"] == "assistant" else "user"
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
+            if message["role"] == "assistant" and message.get("references"):
+                with st.expander("Lihat Hadist Relevan 📚"):
+                    for ref in message["references"]:
+                        kitab = ref.get("kitab", "Kitab Tidak Dikenal")
+                        hadits_id = ref.get("id", "ID Tidak Dikenal")
+                        st.info(f"**{ref['kitab']}**, No. Hadits: `{ref['id']}` [🔗 Lihat]({ref['url']})", icon="📖")
+
+
 
 # --- Input Handling ---
 prompt_from_input = st.chat_input("Tulis pertanyaan Anda di sini...")
 final_prompt = prompt_from_suggestion or prompt_from_input
 
 if final_prompt:
-    # Set state bahwa chat sudah dimulai
+    # Jika ini pesan pertama, set state chat dimulai
     if not st.session_state.chat_started:
         st.session_state.chat_started = True
+        # Bersihkan pesan sambutan saat chat dimulai
+        st.session_state.messages = []
 
     # Tambah pesan user ke histori
     st.session_state.messages.append({"role": "user", "content": final_prompt})
     
-    # Tampilkan pesan user yang baru
-    with st.chat_message("user"):
-        st.markdown(final_prompt)
-
-    # Buat placeholder untuk streaming response
+    # Dapatkan response dari model yang dipilih
     with st.chat_message("assistant", avatar="🌙"):
         message_placeholder = st.empty()
-        references_placeholder = st.empty()
         
-        # Stream the response
         full_response = ""
         references = []
         
-        for response_chunk, refs in get_ai_response_stream(final_prompt):
+        # Stream the response
+        response_generator = get_ai_response_stream(final_prompt, st.session_state.selected_model)
+        for response_chunk, refs in response_generator:
             full_response = response_chunk
             references = refs
-            # Update placeholder dengan response yang sedang dibangun
-            message_placeholder.markdown(full_response + "▌")  # Cursor blinking effect
+            message_placeholder.markdown(full_response + "▌")  # Efek kursor
         
-        # Hapus cursor dan tampilkan response final
+        # Tampilkan response final
         message_placeholder.markdown(full_response)
         
         # Tampilkan referensi jika ada
         if references:
-            with references_placeholder.expander("Lihat Referensi 📚"):
+            with st.expander("Lihat Hadist Relevan 📚"):
                 for ref in references:
-                    st.info(f"**{ref['title']}**: {ref['source']}", icon="📖")
+                    kitab_asli = ref.get("kitab", "unknown")
+                    hadits_id = ref.get("id", "–")
+                    st.info(f"**{ref['kitab']}**, No. Hadits: `{ref['id']}` [🔗 Lihat]({ref['url']})", icon="📖")
 
-    # Tambah response ke histori setelah streaming selesai
+
+    # Tambah response AI ke histori
     st.session_state.messages.append({
         "role": "assistant", 
         "content": full_response, 
         "references": references
     })
     
-    # Rerun untuk me-refresh tampilan ke mode chat
+    # Rerun untuk update UI
     st.rerun()
+

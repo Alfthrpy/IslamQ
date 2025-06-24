@@ -32,7 +32,7 @@ with open("resource/other_words.txt", "r") as f:
 with open('resource/responses.json') as f:
     responses = json.load(f)
 
-def invoke(chat_input):
+def invoke_lstm(chat_input):
     input_shape = 97  # Adjust this based on your model's expected input shape
     texts_p = []
     prediction_input = chat_input
