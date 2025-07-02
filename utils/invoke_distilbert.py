@@ -5,17 +5,16 @@ import json
 import random
 import numpy as np
 
-with open('resource/label_encoder.json') as f:
-    label_encoder = LabelEncoder()
-    label_encoder.classes_ = np.array(json.load(f))
+with open('resource/label_map.json') as f:
+    label_map = json.load(f)
 
 
 with open('resource/responses.json') as f:
     responses = json.load(f)
 
-tokenizer = AutoTokenizer.from_pretrained("PetaniHandal/distilber_finetuned_islamQ")
+tokenizer = AutoTokenizer.from_pretrained("PetaniHandal/distilbert-finetuned-islamq-v2")
 model = AutoModelForSequenceClassification.from_pretrained(
-    "PetaniHandal/distilber_finetuned_islamQ",
+    "PetaniHandal/distilbert-finetuned-islamq-v2",
     num_labels=2031
 )
 
@@ -35,8 +34,7 @@ def invoke_distilbert(text):
     inputs = tokenizing_distilbert(text_processed)
     inputs = {k: torch.tensor(v).unsqueeze(0) for k, v in inputs.items()}
     result = predicting_distilbert(inputs)
-
-    response_tag = label_encoder.inverse_transform(result)[0]
+    response_tag = label_map[result[0]]
     print(response_tag)
-    return random.choice(responses[response_tag])
+    return random.choice(responses[response_tag]), response_tag
 

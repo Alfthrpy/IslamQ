@@ -130,12 +130,13 @@ def get_ai_response_stream(user_query: str, model: str):
     """
     # Dapatkan response penuh dari model yang dipilih
     if model == "LSTM":
-        full_response = invoke_lstm(user_query)
+        full_response, response_tag = invoke_lstm(user_query)
     elif model == "DistilBERT":
-        full_response = invoke_distilbert(user_query)
+        full_response, response_tag = invoke_distilbert(user_query)
     else:
         full_response = "Model tidak valid. Silakan pilih model yang tersedia."
-    results = get_references(user_query, secrets)
+        
+    results = get_references(user_query, secrets, response_tag)
     
     # Stream response kata demi kata
     words = full_response.split()
@@ -217,49 +218,47 @@ else:
 prompt_from_input = st.chat_input("Tulis pertanyaan Anda di sini...")
 final_prompt = prompt_from_suggestion or prompt_from_input
 
+# ... (sebelumnya)
 if final_prompt:
     # Jika ini pesan pertama, set state chat dimulai
     if not st.session_state.chat_started:
         st.session_state.chat_started = True
-        # Bersihkan pesan sambutan saat chat dimulai
-        st.session_state.messages = []
+        st.session_state.messages = [] # Kosongkan pesan awal
 
-    # Tambah pesan user ke histori
+    # Tambahkan pesan user ke state
     st.session_state.messages.append({"role": "user", "content": final_prompt})
+
+    # TAMBAHKAN: Tampilkan pesan user yang baru dikirim secara langsung
+    with st.chat_message("user"):
+        st.markdown(final_prompt)
     
-    # Dapatkan response dari model yang dipilih
+    # Dapatkan dan tampilkan respons dari AI
     with st.chat_message("assistant", avatar="🌙"):
         message_placeholder = st.empty()
         
         full_response = ""
         references = []
         
-        # Stream the response
         response_generator = get_ai_response_stream(final_prompt, st.session_state.selected_model)
         for response_chunk, refs in response_generator:
             full_response = response_chunk
             references = refs
-            message_placeholder.markdown(full_response + "▌")  # Efek kursor
+            message_placeholder.markdown(full_response + "▌")
         
-        # Tampilkan response final
         message_placeholder.markdown(full_response)
         
-        # Tampilkan referensi jika ada
         if references:
             with st.expander("Lihat Hadist Relevan 📚"):
                 for ref in references:
-                    kitab_asli = ref.get("kitab", "unknown")
-                    hadits_id = ref.get("id", "–")
                     st.info(f"**{ref['kitab']}**, No. Hadits: `{ref['id']}` [🔗 Lihat]({ref['url']})", icon="📖")
 
-
-    # Tambah response AI ke histori
+    # Tambahkan respons AI yang lengkap ke state untuk riwayat percakapan
     st.session_state.messages.append({
         "role": "assistant", 
         "content": full_response, 
         "references": references
     })
     
-    # Rerun untuk update UI
-    st.rerun()
+    # HAPUS: st.rerun() tidak diperlukan lagi dan menyebabkan bug render
+    # st.rerun()
 

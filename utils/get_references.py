@@ -22,6 +22,63 @@ kitab_slug_map = {
     'shahih_muslim': 'muslim',
 }
 
+greetings = [    "greeting I",
+    "greeting II",
+    "Hallo",
+    "hola",
+    "wassup",
+    "yo",
+    "How day",
+    "islamic greetings",
+    "Peace be upon you",
+    "and upon you be peace",
+    "Wa Alaikum Asalam",
+    "been fine",
+    "day is great",
+    "day is great yours",
+    "and what about you",
+    "how are you",
+    "not good",
+    "goodbye",
+    "Islamic goodbye",
+    "noanswer",
+    "thanks",
+    "thank you",
+    "children_stories",
+    "chatbot",
+    "chatbot name",
+    "Al-Siraj",
+    "your age",
+    "Where you live",
+    "Where are you from",
+    "Are you married",
+    "Do you have children",
+    "languages can you speak",
+    "Other than english",
+    "Other than english and urdu",
+    "your goals",
+    "Your aim",
+    "Your mission",
+    "you busy",
+    "Are you free?",
+    "other chatbots",
+    "think of me",
+    "Say anything",
+    "Say something",
+    "weather",
+    "time",
+    "date",
+    "day",
+    "know me",
+    "interacted before",
+    "How many people can you talk",
+    "like humans",
+    "why like humans",
+    "you are good",
+    "love humans",
+    "why love humans",
+    "options",]
+
 def map(data):
     for item in data:
         kitab_raw = item.get("kitab")
@@ -39,7 +96,7 @@ def map(data):
     return data
 
 
-def get_references(query, secret):
+def get_references(query, secret, response_tag):
     headers = {
         "Authorization": f"Bearer {secret}"
     }
@@ -56,6 +113,9 @@ def get_references(query, secret):
         result = response.json().get("results", [])
         if result:
             result = map(result)
-        return result
+        if response_tag in greetings:
+            return []
+        else:
+            return result
     else:
         response.raise_for_status()

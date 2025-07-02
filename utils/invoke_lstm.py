@@ -65,6 +65,6 @@ def invoke_lstm(chat_input):
     # Inputnya harus di dalam list, misal: [2]
     response_tag = label_encoder.inverse_transform([output_idx])[0]
 
-    return random.choice(responses[response_tag])
+    return random.choice(responses[response_tag]), response_tag
 
 
