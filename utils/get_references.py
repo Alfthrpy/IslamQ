@@ -16,8 +16,8 @@ kitab_mapping = {
 kitab_slug_map = {
     'sunan_nasai': 'nasai',
     'sunan_Tirmidzi': 'tirmidzi',
-    'sunan_abu_daud': 'abu-daud',
-    'sunan_ibnu_majah': 'ibnu-majah',
+    'sunan_abu_daud': 'dawud',
+    'sunan_ibnu_majah': 'majah',
     'shahih_bukhari': 'bukhari',
     'shahih_muslim': 'muslim',
 }

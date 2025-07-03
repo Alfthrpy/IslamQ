@@ -187,7 +187,7 @@ if not st.session_state.chat_started:
     # Kartu Saran
     suggestion_prompts = [
         "Assalamualaikum",
-        "Berikan saya kisah",
+        "Mukjizat Nabi Muhammad",
         "Apa itu islam",
         "Siapa itu Allah?",
     ]
