@@ -186,10 +186,10 @@ if not st.session_state.chat_started:
     
     # Kartu Saran
     suggestion_prompts = [
-        "Apa itu sabar dalam Islam?",
-        "Bagaimana cara bersyukur yang benar?",
-        "Jelaskan tentang Rukun Iman",
-        "Kisah singkat Nabi Muhammad SAW"
+        "Assalamualaikum",
+        "Berikan saya kisah nabi-nabi",
+        "Apa itu islam",
+        "Apa saja rukun Islam?",
     ]
     
     cols = st.columns(2)
